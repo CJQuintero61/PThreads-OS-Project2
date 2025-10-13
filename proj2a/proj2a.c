@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 // preprocessor directives
 #define MAX_THREADS 512
@@ -34,10 +35,13 @@ int total_hits;                             // the total number of hits
 int total_misses;                           // the total number of misses
 int hits[ MAX_THREADS ];                    // array to hold hits per thread 
 int sample_points_per_thread;               // sample points divided among the threads
-int num_threads;                            // number of threads to create                  
+int num_threads;                            // number of threads to create    
+struct timespec start_time;                 // start time
+struct timespec end_time;                   // end time           
+double execution_time;                      // execution time
 
 
-int main( int argc, char *argv[] ) {
+int main( int argc, char *argv[] ) {                   
   // local variables
   int ii;                                   // itertor
   int retval;                               // return value               
@@ -62,6 +66,9 @@ int main( int argc, char *argv[] ) {
 
   printf( "Enter number of threads: " );
   scanf( "%d", &num_threads );
+
+  // store the real time at the start of the computation
+  clock_gettime(CLOCK_MONOTONIC, &start_time);
  
   // calculate the number of sample points per thread
   sample_points_per_thread = sample_points / num_threads;
@@ -86,8 +93,17 @@ int main( int argc, char *argv[] ) {
   // calculate the computed value of pi
   computed_pi = 4.0 * (double) total_hits / ((double) (sample_points));
 
+  // store the real time at the end of the computation
+  clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+  // calculate the execution time by 
+  // subtracting the start time from the end time
+  // and converting the nanoseconds to seconds
+  execution_time = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec)/1.0e9;
+
   // print the results
   printf( "Computed PI = %lf\n", computed_pi );
+  printf( "Execution Time = %lf\n", execution_time );
 
   // return to the calling environment
   return( retval );
