@@ -12,8 +12,15 @@
   1. must be in a unix based terminal or wsl
   2. `make` to compile
   3. `make run` to execute the program
-  4. follow the input prompts
+  4. follow the input prompts. 
   5. `make clean` to remove the compiled files
+
+  NOTES: 
+    You may want to enter small values for rows and colums to make it easier to verify the results.
+    For example, 3 rows and 4 columns.
+
+    In the fillMatrix() function, you may want to change the range of random integers generated
+    to be smaller to make it easier to verify the results. For example, change 100 to 10. 
 */
 
 // imports 
@@ -108,6 +115,7 @@ int main() {
         cleanup(A, x, Y, threads, NULL, dimensions);
         exit(1);
     }
+
     // create the threads to handle each row of the A matrix
     for(int i = 0; i < dimensions.rows; i++) {
 
@@ -120,8 +128,7 @@ int main() {
         thread_args[i].row = i; 
         thread_args[i].cols = dimensions.cols; 
 
-        // create the thread and pass the row index as the argument
-        // for example) thread[0] calculates Y[0] by using the entire A[0] row and the x vector
+        // create the thread and pass the thread specific args
         pthread_create(&threads[i], NULL, calculateValue, (void*) &thread_args[i]); 
     }
 
@@ -130,10 +137,10 @@ int main() {
         pthread_join(threads[i], NULL);
     }
 
-    // print the matricies for debugging purposes
+    // print the matricies
     printMatricies(A, x, Y, dimensions);
 
-    // cleanup memory allocation and avoid dangling pointers
+    // cleanup memory allocations
     cleanup(A, x, Y, threads, thread_args, dimensions);
     return 0;
 } // end main
