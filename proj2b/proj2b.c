@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 // create a Dimensions datatype to get the rows and columns
 typedef struct {
@@ -30,29 +31,25 @@ typedef struct {
 // prototypes
 Dimensions getDimensions();
 void fillMatrix(int** A, int* x, const Dimensions d);
+void printMatricies(int** A, int* x, int* Y, const Dimensions d);
 
 int main() {
     // get the rows and cols
     const Dimensions dimensions = getDimensions();
 
-    // allocate the rows for the A matrix
-    int** A = (int*) malloc(dimensions.rows * sizeof(int));     
+    // allocate an array of row pointers for the A matrix
+    int** A = malloc((size_t) dimensions.rows * sizeof(int *));     
 
     // allocate the columns for each row in the A matrix
     for(int i = 0; i < dimensions.rows; i++) {
-        A[i] = (int*) malloc(dimensions.cols * sizeof(int));            
+        A[i] = malloc((size_t) dimensions.cols * sizeof(int));            
     }
 
-    // repeat for the Y matrix
-    int** Y = (int*) malloc(dimensions.rows * sizeof(int));
+    // the result vector Y only needs to be of size rows (aka m)
+    int* Y = malloc((size_t) dimensions.rows * sizeof(int));
 
-    for(int i = 0; i < dimensions.rows; i++) {
-        Y[i] = (int*) malloc(sizeof(int));            
-    }
-
-    // allocate the x vector
-    // it only needs to be of size cols
-    int* x = (int*) malloc(dimensions.cols * sizeof(int));
+    // the x vector only needs to be of size cols (aka n)
+    int* x = malloc((size_t) dimensions.cols * sizeof(int));
 
     // fill the A matrix and x vector with random integers
     fillMatrix(A, x, dimensions);
@@ -62,16 +59,19 @@ int main() {
 
 
 
-
-
-
     // cleanup memory allocation and avoid dangling pointers
-    free(A);
-    A = NULL;
-    free(Y);
-    Y = NULL;
     free(x);
     x = NULL;
+    free(Y);
+    Y = NULL;
+
+    // free each row in the A matrix
+    for(int i = 0; i < dimensions.rows; i++) {
+        free(A[i]);
+        A[i] = NULL;
+    }
+    free(A);
+    A = NULL;
 
     return 0;
 } // end main
@@ -123,6 +123,40 @@ void fillMatrix(int** A, int* x, const Dimensions d) {
     }
 
 } // end fillMatrix
+
+void printMatricies(int** A, int* x, int* Y, const Dimensions d) {
+    /*  printMatricies()
+        This function prints the A matrix, x vector, and Y vector for debugging purposes.
+
+        Parameters:
+            A: int** - pointer to the A matrix. A 2D array with rows = d.rows and cols = d.cols
+            x: int* - pointer to the x vector. A 1D array with size = d.cols
+            Y: int* - pointer to the Y vector. A 1D array with size = d.rows
+            d: Dimensions - dimensions object with rows and columns set
+    */
+
+    // print the A matrix
+    printf("Matrix A:\n");
+    for(int i = 0; i < d.rows; i++) {
+        for(int j = 0; j < d.cols; j++) {
+            printf("%d ", A[i][j]);
+        }
+        printf("\n");
+    }
+
+    // print the x vector
+    printf("Vector x:\n");
+    for(int i = 0; i < d.cols; i++) {
+        printf("%d\n", x[i]);
+    }
+
+    // print the Y vector
+    printf("Vector Y:\n");
+    for(int i = 0; i < d.rows; i++) {
+        printf("%d\n", Y[i]);
+    }
+
+} // end printMatricies
 
 
 
