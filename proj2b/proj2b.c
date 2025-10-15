@@ -7,6 +7,8 @@
 	This file uses threads to solve a system of linear equations using matrix multiplication.
     The process here will be to get the dimensions m * n (rows * cols) of matrix A,
     then use n to create the x vector of size n, then use Y = AX to solve for Y.
+
+    Each thread will compute one row of the resulting Y vector.
   
   To Run:
   1. must be in a unix based terminal or wsl
@@ -143,6 +145,7 @@ int main() {
     // cleanup memory allocations
     cleanup(A, x, Y, threads, thread_args, dimensions);
     return 0;
+    
 } // end main
 
 Dimensions getDimensions() {
@@ -163,6 +166,7 @@ Dimensions getDimensions() {
     scanf("%d", &d.cols);
 
     return d;
+
 } // end getDimensions
 
 void fillMatrix(int** A, int* x, const Dimensions d) {
@@ -265,6 +269,7 @@ void* calculateValue(void* args) {
     thread_args->Y[thread_args->row] = sum;
 
     return NULL;
+
 } // end calculateValue
 
 void printMatricies(int** A, int* x, int* Y, const Dimensions d) {
