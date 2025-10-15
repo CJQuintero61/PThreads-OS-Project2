@@ -28,11 +28,21 @@ typedef struct {
     int cols;
 } Dimensions;
 
+// create the args that will be passed to each thread
+typedef struct {
+    int** A;         // pointer to the A matrix
+    int* x;          // pointer to the x vector
+    int* Y;          // pointer to the Y vector
+    int row;         // the row index this thread will calculate
+    int cols;        // the number of columns in the A matrix and size of x vector
+} Thread_args;
+
 // prototypes
 Dimensions getDimensions();
 void fillMatrix(int** A, int* x, const Dimensions d);
-void cleanup(int** A, int* x, int* Y, const Dimensions d);
+void cleanup(int** A, int* x, int* Y, pthread_t* threads, Thread_args* args, const Dimensions d);
 void printMatricies(int** A, int* x, int* Y, const Dimensions d);
+void* calculateValue(void* args);
 
 int main() {
     // get the rows and cols
@@ -44,7 +54,7 @@ int main() {
     // if the allocation for A fails, print an error, cleanup, and exit
     if (!A) { 
         perror("Failed to allocate A matrix rows.");
-        cleanup(A, NULL, NULL, dimensions);
+        cleanup(A, NULL, NULL, NULL, NULL, dimensions);
         exit(1); 
     }
 
@@ -55,7 +65,7 @@ int main() {
         // validate the allocation for each row
         if(!A[i]) {
             perror("Failed to allocate A matrix columns.");
-            cleanup(A, NULL, NULL, dimensions);
+            cleanup(A, NULL, NULL, NULL, NULL, dimensions);
             exit(1);
         }
     }
@@ -66,7 +76,7 @@ int main() {
     // if the allocation for x fails, print an error, cleanup, and exit
     if (!x) { 
         perror("Failed to allocate x vector.");
-        cleanup(A, x, NULL, dimensions);
+        cleanup(A, x, NULL, NULL, NULL, dimensions);
         exit(1); 
     }
 
@@ -76,20 +86,55 @@ int main() {
     // if the allocation for Y fails, print an error, cleanup, and exit
     if (!Y) { 
         perror("Failed to allocate Y vector.");
-        cleanup(A, x, Y, dimensions);
+        cleanup(A, x, Y, NULL, NULL, dimensions);
         exit(1); 
     }
 
     // fill the A matrix and x vector with random integers
     fillMatrix(A, x, dimensions);
 
+    // allocate an array of threads to handle each row of the A matrix
+    pthread_t* threads = malloc((size_t) dimensions.rows * sizeof(pthread_t));
+    if (!threads) { 
+        perror("Failed to allocate threads.");
+        cleanup(A, x, Y, threads, NULL, dimensions);
+        exit(1); 
+    }
 
+    // allocate an array of Thread_args to pass to each thread
+    Thread_args* thread_args = malloc((size_t) dimensions.rows * sizeof(Thread_args));
+    if (!thread_args) {
+        perror("Failed to allocate thread args");
+        cleanup(A, x, Y, threads, NULL, dimensions);
+        exit(1);
+    }
+    // create the threads to handle each row of the A matrix
+    for(int i = 0; i < dimensions.rows; i++) {
 
+        // set the args for this thread
+        // each thread's args will have the same variables
+        // except for the row index which will be different
+        thread_args[i].A = A;
+        thread_args[i].x = x;
+        thread_args[i].Y = Y;
+        thread_args[i].row = i; 
+        thread_args[i].cols = dimensions.cols; 
 
+        // create the thread and pass the row index as the argument
+        // for example) thread[0] calculates Y[0] by using the entire A[0] row and the x vector
+        pthread_create(&threads[i], NULL, calculateValue, (void*) &thread_args[i]); 
+    }
 
+    // wait for each thread to complete
+    for(int i = 0; i < dimensions.rows; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    // print the matricies for debugging purposes
+    printMatricies(A, x, Y, dimensions);
 
     // cleanup memory allocation and avoid dangling pointers
-    cleanup(A, x, Y, dimensions);
+    cleanup(A, x, Y, threads, thread_args, dimensions);
     return 0;
 } // end main
 
@@ -141,7 +186,7 @@ void fillMatrix(int** A, int* x, const Dimensions d) {
 
 } // end fillMatrix
 
-void cleanup(int** A, int* x, int* Y, const Dimensions d) {
+void cleanup(int** A, int* x, int* Y, pthread_t* threads, Thread_args* args, const Dimensions d) {
     /*  cleanup()
         This function frees the memory allocated for the arrays and 
         avoids dangling pointers.
@@ -150,6 +195,7 @@ void cleanup(int** A, int* x, int* Y, const Dimensions d) {
             A: int*** - reference to pointer to the A matrix. A 2D array with rows = d.rows and cols = d.cols
             x: int** - reference to pointer to the x vector. A 1D array with size = d.cols
             Y: int** - reference to pointer to the Y vector. A 1D array with size = d.rows
+            threads: pthread_t* - pointer to the array of threads
             d: Dimensions - dimensions object with rows and columns set
     */
 
@@ -181,7 +227,38 @@ void cleanup(int** A, int* x, int* Y, const Dimensions d) {
         A = NULL;
     }
 
+    // free the threads array if it was able to be allocated
+    if (threads) { 
+        free(threads);  
+        threads = NULL;
+    }
+
+    // free the thread args array if it was able to be allocated
+    if (args) { 
+        free(args);  
+        args = NULL;
+    }
+
 } // end cleanup
+
+void* calculateValue(void* args) {
+    // cast the args back to the correct type
+    Thread_args* thread_args = (Thread_args*) args;
+
+    // initialize the sum, this is the result of the dot product
+    int sum = 0;
+
+    for(int j = 0; j < thread_args->cols; j++) {
+        // for this specific row, multiply each element by the corresponding element in x
+        // then add that to the sum
+        sum = sum +  (thread_args->A[thread_args->row][j] * thread_args->x[j] );
+    }
+
+    // store the result in the Y vector at the index of this row
+    thread_args->Y[thread_args->row] = sum;
+
+    return NULL;
+} // end calculateValue
 
 void printMatricies(int** A, int* x, int* Y, const Dimensions d) {
     /*  printMatricies()
@@ -202,12 +279,14 @@ void printMatricies(int** A, int* x, int* Y, const Dimensions d) {
         }
         printf("\n");
     }
+    printf("\n");
 
     // print the x vector
     printf("Vector x:\n");
     for(int i = 0; i < d.cols; i++) {
         printf("%d\n", x[i]);
     }
+    printf("\n");
 
     // print the Y vector
     printf("Vector Y:\n");
