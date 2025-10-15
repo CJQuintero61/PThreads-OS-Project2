@@ -31,6 +31,7 @@ typedef struct {
 // prototypes
 Dimensions getDimensions();
 void fillMatrix(int** A, int* x, const Dimensions d);
+void cleanup(int** A, int* x, int* Y, const Dimensions d);
 void printMatricies(int** A, int* x, int* Y, const Dimensions d);
 
 int main() {
@@ -38,18 +39,46 @@ int main() {
     const Dimensions dimensions = getDimensions();
 
     // allocate an array of row pointers for the A matrix
-    int** A = malloc((size_t) dimensions.rows * sizeof(int *));     
+    int** A = malloc((size_t) dimensions.rows * sizeof(int *));   
+    
+    // if the allocation for A fails, print an error, cleanup, and exit
+    if (!A) { 
+        perror("Failed to allocate A matrix rows.");
+        cleanup(A, NULL, NULL, dimensions);
+        exit(1); 
+    }
 
     // allocate the columns for each row in the A matrix
     for(int i = 0; i < dimensions.rows; i++) {
-        A[i] = malloc((size_t) dimensions.cols * sizeof(int));            
+        A[i] = malloc((size_t) dimensions.cols * sizeof(int));    
+        
+        // validate the allocation for each row
+        if(!A[i]) {
+            perror("Failed to allocate A matrix columns.");
+            cleanup(A, NULL, NULL, dimensions);
+            exit(1);
+        }
+    }
+
+    // the x vector only needs to be of size cols (aka n)
+    int* x = malloc((size_t) dimensions.cols * sizeof(int));
+
+    // if the allocation for x fails, print an error, cleanup, and exit
+    if (!x) { 
+        perror("Failed to allocate x vector.");
+        cleanup(A, x, NULL, dimensions);
+        exit(1); 
     }
 
     // the result vector Y only needs to be of size rows (aka m)
     int* Y = malloc((size_t) dimensions.rows * sizeof(int));
 
-    // the x vector only needs to be of size cols (aka n)
-    int* x = malloc((size_t) dimensions.cols * sizeof(int));
+    // if the allocation for Y fails, print an error, cleanup, and exit
+    if (!Y) { 
+        perror("Failed to allocate Y vector.");
+        cleanup(A, x, Y, dimensions);
+        exit(1); 
+    }
 
     // fill the A matrix and x vector with random integers
     fillMatrix(A, x, dimensions);
@@ -60,19 +89,7 @@ int main() {
 
 
     // cleanup memory allocation and avoid dangling pointers
-    free(x);
-    x = NULL;
-    free(Y);
-    Y = NULL;
-
-    // free each row in the A matrix
-    for(int i = 0; i < dimensions.rows; i++) {
-        free(A[i]);
-        A[i] = NULL;
-    }
-    free(A);
-    A = NULL;
-
+    cleanup(A, x, Y, dimensions);
     return 0;
 } // end main
 
@@ -102,7 +119,7 @@ void fillMatrix(int** A, int* x, const Dimensions d) {
         from 0 to 99.
 
         Parameters:
-            A: int* - pointer to the A matrix. A 2D array with rows = d.rows and cols = d.cols
+            A: int** - pointer to the A matrix. A 2D array with rows = d.rows and cols = d.cols
             x: int* - pointer to the x vector. A 1D array with size = d.cols
             d: Dimensions - dimensions object with rows and columns set
     */
@@ -123,6 +140,48 @@ void fillMatrix(int** A, int* x, const Dimensions d) {
     }
 
 } // end fillMatrix
+
+void cleanup(int** A, int* x, int* Y, const Dimensions d) {
+    /*  cleanup()
+        This function frees the memory allocated for the arrays and 
+        avoids dangling pointers.
+
+        Parameters:
+            A: int*** - reference to pointer to the A matrix. A 2D array with rows = d.rows and cols = d.cols
+            x: int** - reference to pointer to the x vector. A 1D array with size = d.cols
+            Y: int** - reference to pointer to the Y vector. A 1D array with size = d.rows
+            d: Dimensions - dimensions object with rows and columns set
+    */
+
+    // free the x vector if it was able to be allocated
+    if (x) { 
+        free(x);
+        x = NULL;
+    }
+
+
+    // free the Y vector if was able to be allocated
+    if (Y) { 
+        free(Y);  
+        Y = NULL;
+    }
+    
+    // if A was allocated, free each row and then free A itself
+    if(A) {
+        // free each row
+        for(int i = 0; i < d.rows; i++) {
+            // free each row if it is not NULL
+            if (A[i]) { 
+                free(A[i]);
+                A[i] = NULL;
+            }
+        }
+        // free the array of row pointers
+        free(A);
+        A = NULL;
+    }
+
+} // end cleanup
 
 void printMatricies(int** A, int* x, int* Y, const Dimensions d) {
     /*  printMatricies()
