@@ -6,6 +6,10 @@ to prind the output where one thread is responsible for printing the words in th
 string that start with a consonant and the other printing the words that start with a
 vowel. 
 
+The challenge here is to print the words in the same order as they were inputted
+without using mutexes. This is done by using an atomic counter that both threads check
+to see if it's their turn to print. 
+
 To Run:
   1. must be in a unix based terminal or wsl
   2. `make` to compile
